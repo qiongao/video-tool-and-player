@@ -11,8 +11,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
 
-public class MyGUI extends JPanel {
-    public MyGUI() throws BadLocationException {
+public class AuthoringTool extends JPanel {
+    public AuthoringTool() throws BadLocationException {
         setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
 
         JComponent controlPart = new ControlPart();
@@ -26,7 +26,7 @@ public class MyGUI extends JPanel {
     }
     public static void main(String[] args) throws BadLocationException {
         JFrame frame = new JFrame();
-        frame.setContentPane(new MyGUI());
+        frame.setContentPane(new AuthoringTool());
 
         //Display the window.
         frame.pack();
@@ -76,14 +76,21 @@ class FirstVideo extends JPanel {
         setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
 
         JLayeredPane videoPart = new JLayeredPane();
+        videoPart.setMaximumSize(new Dimension(352, 288));
         videoPart.setPreferredSize(new Dimension(352, 288));
         videoPart.setBorder(BorderFactory.createTitledBorder("Video1"));
 
-        JSlider framesPerSecond = new JSlider(JSlider.HORIZONTAL,
-                0, 10, 5);
+        JSlider videoProgressSlider = new JSlider(JSlider.HORIZONTAL, 0, 9000, 0) {
+            @Override
+            public void updateUI() {
+                setUI(new CustomSliderUI(this));
+            }
+        };
+        videoProgressSlider.setMaximumSize(new Dimension(360, 30));
+        videoProgressSlider.setPreferredSize(new Dimension(360, 30));
 
         add(videoPart);
-        add(framesPerSecond);
+        add(videoProgressSlider);
     }
 }
 
@@ -92,14 +99,22 @@ class SecondVideo extends JPanel {
         setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
 
         JLayeredPane videoPart = new JLayeredPane();
+        videoPart.setMaximumSize(new Dimension(352, 288));
         videoPart.setPreferredSize(new Dimension(352, 288));
         videoPart.setBorder(BorderFactory.createTitledBorder("Video2"));
 
-        JSlider framesPerSecond = new JSlider(JSlider.HORIZONTAL,
-                0, 10, 5);
+
+        JSlider videoProgressSlider = new JSlider(JSlider.HORIZONTAL, 0, 9000, 0) {
+            @Override
+            public void updateUI() {
+                setUI(new CustomSliderUI(this));
+            }
+        };
+        videoProgressSlider.setMaximumSize(new Dimension(360, 30));
+        videoProgressSlider.setPreferredSize(new Dimension(360, 30));
 
         add(videoPart);
-        add(framesPerSecond);
+        add(videoProgressSlider);
     }
 }
 
