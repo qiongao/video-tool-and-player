@@ -102,7 +102,7 @@ class FirstVideo extends JPanel implements ChangeListener {
         videoProgressSlider.setPaintTicks(true);
         videoProgressSlider.addChangeListener(this);
 
-        frameLabel = new JLabel("Frame 0000");
+        frameLabel = new JLabel("Frame 0001");
         frameLabel.setAlignmentX(CENTER_ALIGNMENT);
 
         add(videoPart);
@@ -128,7 +128,7 @@ class FirstVideo extends JPanel implements ChangeListener {
                 }
             }
 
-            rgbFiles.sort((f1, f2) -> f2.getName().compareTo(f1.getName()));
+            rgbFiles.sort((f1, f2) -> f1.getName().compareTo(f2.getName()));
         }
     }
 
@@ -140,6 +140,12 @@ class FirstVideo extends JPanel implements ChangeListener {
 
         if (rgbFiles != null && rgbFiles.size() >= progress) {
             plotRGBFile(rgbFiles.get(progress-1));
+        }
+    }
+
+    public void SetFirstFrame() {
+        if (rgbFiles != null && rgbFiles.size() > 0) {
+            plotRGBFile(rgbFiles.get(0));
         }
     }
 
@@ -178,7 +184,7 @@ class SecondVideo extends JPanel implements ChangeListener {
         videoProgressSlider.setPaintTicks(true);
         videoProgressSlider.addChangeListener(this);
 
-        frameLabel = new JLabel("Frame 0000");
+        frameLabel = new JLabel("Frame 0001");
         frameLabel.setAlignmentX(CENTER_ALIGNMENT);
 
         add(videoPart);
@@ -204,7 +210,7 @@ class SecondVideo extends JPanel implements ChangeListener {
                 }
             }
 
-            rgbFiles.sort((f1, f2) -> f2.getName().compareTo(f1.getName()));
+            rgbFiles.sort((f1, f2) -> f1.getName().compareTo(f2.getName()));
         }
     }
 
@@ -216,6 +222,12 @@ class SecondVideo extends JPanel implements ChangeListener {
 
         if (rgbFiles != null && rgbFiles.size() >= progress) {
             plotRGBFile(rgbFiles.get(progress-1));
+        }
+    }
+
+    public void SetFirstFrame() {
+        if (rgbFiles != null && rgbFiles.size() > 0) {
+            plotRGBFile(rgbFiles.get(0));
         }
     }
 
@@ -311,11 +323,13 @@ class ActionPart extends JPanel implements ListSelectionListener {
                     System.out.println("Import Primary Video Directory: " + PrimaryVideoDir);
                     directoryLabel.setText(String.valueOf(PrimaryVideoDir));
                     videoPart.VideoPart1.LoadVideo(PrimaryVideoDir);
+                    videoPart.VideoPart1.SetFirstFrame();
                 } else if (index == 1) {
                     SecondaryVideoDir = fc.getSelectedFile();
                     System.out.println("Import Secondary Video Directory: " + SecondaryVideoDir);
                     directoryLabel.setText(String.valueOf(SecondaryVideoDir));
                     videoPart.VideoPart2.LoadVideo(SecondaryVideoDir);
+                    videoPart.VideoPart2.SetFirstFrame();
                 }
             }
         }
