@@ -1,22 +1,25 @@
 package GUI;
 
+import javafx.print.Collation;
+
 import javax.swing.*;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
+import javax.swing.event.*;
 import javax.swing.text.BadLocationException;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 
 public class AuthoringTool extends JPanel {
     public AuthoringTool() throws BadLocationException {
         setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
 
-        JComponent controlPart = new ControlPart();
-        JComponent videoPart = new VideoPart();
+        VideoPart videoPart = new VideoPart();
+        JComponent controlPart = new ControlPart(videoPart);
 
         add(Box.createRigidArea(new Dimension(0, 10)));
         add(controlPart);
@@ -35,10 +38,10 @@ public class AuthoringTool extends JPanel {
 }
 
 class ControlPart extends JPanel {
-    public ControlPart() {
+    public ControlPart(VideoPart videoPart) {
         setLayout(new BoxLayout(this, BoxLayout.X_AXIS));
 
-        ActionPart ActionChoiceList = new ActionPart();
+        ActionPart ActionChoiceList = new ActionPart(videoPart);
         LinkListPart selectLinkList = new LinkListPart();
 
         JPanel buttonsPanel = new JPanel();
@@ -60,27 +63,33 @@ class ControlPart extends JPanel {
 }
 
 class VideoPart extends JPanel  {
+    public FirstVideo VideoPart1;
+    public SecondVideo VideoPart2;
     public VideoPart() {
         setLayout(new BoxLayout(this, BoxLayout.LINE_AXIS));
 
-        JComponent videoPart1 = new FirstVideo();
-        JComponent videoPart2 = new SecondVideo();
+        VideoPart1 = new FirstVideo();
+        VideoPart2 = new SecondVideo();
 
-        add(videoPart1);
-        add(videoPart2);
+        add(VideoPart1);
+        add(VideoPart2);
     }
 }
 
-class FirstVideo extends JPanel {
+class FirstVideo extends JPanel implements ChangeListener {
+    ArrayList<File> rgbFiles = null;
+    JLabel frameLabel;
+    JLabel videoPart;
     public FirstVideo() {
-        setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
 
-        JLayeredPane videoPart = new JLayeredPane();
+        videoPart = new JLabel();
         videoPart.setMaximumSize(new Dimension(352, 288));
         videoPart.setPreferredSize(new Dimension(352, 288));
-        videoPart.setBorder(BorderFactory.createTitledBorder("Video1"));
+        videoPart.setBorder(BorderFactory.createTitledBorder(""));
+        videoPart.setAlignmentX(CENTER_ALIGNMENT);
 
-        JSlider videoProgressSlider = new JSlider(JSlider.HORIZONTAL, 0, 9000, 0) {
+        JSlider videoProgressSlider = new JSlider(JSlider.HORIZONTAL, 1, 9000, 1) {
             @Override
             public void updateUI() {
                 setUI(new CustomSliderUI(this));
@@ -88,23 +97,75 @@ class FirstVideo extends JPanel {
         };
         videoProgressSlider.setMaximumSize(new Dimension(360, 30));
         videoProgressSlider.setPreferredSize(new Dimension(360, 30));
+        videoProgressSlider.setMajorTickSpacing(1000);
+        videoProgressSlider.setMinorTickSpacing(100);
+        videoProgressSlider.setPaintTicks(true);
+        videoProgressSlider.addChangeListener(this);
+
+        frameLabel = new JLabel("Frame 0000");
+        frameLabel.setAlignmentX(CENTER_ALIGNMENT);
 
         add(videoPart);
         add(videoProgressSlider);
+        add(frameLabel);
+    }
+
+    public void LoadVideo(File directory) {
+        File[] listOfFiles = directory.listFiles();
+        rgbFiles = new ArrayList<>();
+
+        if (listOfFiles != null) {
+            for (File file : listOfFiles) {
+                String filename = file.getName();
+                String fileType = "";
+                int lastIndex = filename.lastIndexOf('.');
+                if (lastIndex == -1) continue;
+                else {
+                    fileType = filename.substring(lastIndex + 1);
+                }
+                if (fileType.equals("rgb")) {
+                    rgbFiles.add(file);
+                }
+            }
+
+            rgbFiles.sort((f1, f2) -> f2.getName().compareTo(f1.getName()));
+        }
+    }
+
+    @Override
+    public void stateChanged(ChangeEvent e) {
+        JSlider source = (JSlider)e.getSource();
+        int progress = source.getValue();
+        frameLabel.setText("frame "+String.format("%04d", progress));
+
+        if (rgbFiles != null && rgbFiles.size() >= progress) {
+            plotRGBFile(rgbFiles.get(progress-1));
+        }
+    }
+
+    private void plotRGBFile(File rgbFile) {
+        BufferedImage img = ImageDisplay.GetImage(rgbFile);
+        if (img != null) {
+            videoPart.setIcon(new ImageIcon(img));
+        }
     }
 }
 
-class SecondVideo extends JPanel {
+class SecondVideo extends JPanel implements ChangeListener {
+    ArrayList<File> rgbFiles = null;
+    JLabel frameLabel;
+    JLabel videoPart;
     public SecondVideo() {
         setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
 
-        JLayeredPane videoPart = new JLayeredPane();
+        videoPart = new JLabel();
         videoPart.setMaximumSize(new Dimension(352, 288));
         videoPart.setPreferredSize(new Dimension(352, 288));
-        videoPart.setBorder(BorderFactory.createTitledBorder("Video2"));
+        videoPart.setBorder(BorderFactory.createTitledBorder(""));
+        videoPart.setAlignmentX(CENTER_ALIGNMENT);
 
 
-        JSlider videoProgressSlider = new JSlider(JSlider.HORIZONTAL, 0, 9000, 0) {
+        JSlider videoProgressSlider = new JSlider(JSlider.HORIZONTAL, 1, 9000, 1) {
             @Override
             public void updateUI() {
                 setUI(new CustomSliderUI(this));
@@ -112,9 +173,57 @@ class SecondVideo extends JPanel {
         };
         videoProgressSlider.setMaximumSize(new Dimension(360, 30));
         videoProgressSlider.setPreferredSize(new Dimension(360, 30));
+        videoProgressSlider.setMajorTickSpacing(1000);
+        videoProgressSlider.setMinorTickSpacing(100);
+        videoProgressSlider.setPaintTicks(true);
+        videoProgressSlider.addChangeListener(this);
+
+        frameLabel = new JLabel("Frame 0000");
+        frameLabel.setAlignmentX(CENTER_ALIGNMENT);
 
         add(videoPart);
         add(videoProgressSlider);
+        add(frameLabel);
+    }
+
+    public void LoadVideo(File directory) {
+        File[] listOfFiles = directory.listFiles();
+        rgbFiles = new ArrayList<>();
+
+        if (listOfFiles != null) {
+            for (File file : listOfFiles) {
+                String filename = file.getName();
+                String fileType = "";
+                int lastIndex = filename.lastIndexOf('.');
+                if (lastIndex == -1) continue;
+                else {
+                    fileType = filename.substring(lastIndex + 1);
+                }
+                if (fileType.equals("rgb")) {
+                    rgbFiles.add(file);
+                }
+            }
+
+            rgbFiles.sort((f1, f2) -> f2.getName().compareTo(f1.getName()));
+        }
+    }
+
+    @Override
+    public void stateChanged(ChangeEvent e) {
+        JSlider source = (JSlider)e.getSource();
+        int progress = source.getValue();
+        frameLabel.setText("frame "+String.format("%04d", progress));
+
+        if (rgbFiles != null && rgbFiles.size() >= progress) {
+            plotRGBFile(rgbFiles.get(progress-1));
+        }
+    }
+
+    private void plotRGBFile(File rgbFile) {
+        BufferedImage img = ImageDisplay.GetImage(rgbFile);
+        if (img != null) {
+            videoPart.setIcon(new ImageIcon(img));
+        }
     }
 }
 
@@ -131,7 +240,11 @@ class ActionPart extends JPanel implements ListSelectionListener {
     public JFileChooser fc;
     JLabel directoryLabel;
 
-    public ActionPart() {
+    VideoPart videoPart;
+
+    public ActionPart(VideoPart videoPart) {
+        this.videoPart = videoPart;
+
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
 
         listModel = new DefaultListModel();
@@ -159,8 +272,6 @@ class ActionPart extends JPanel implements ListSelectionListener {
         actionList.setSelectedIndex(0);
         actionList.addListSelectionListener(this);
         actionList.setMaximumSize(new Dimension(200, 90));
-//        actionList.setMaximumSize(new Dimension(200, 0));
-//        actionList.setPreferredSize(new Dimension(300, 100));
 
         JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.X_AXIS));
@@ -171,9 +282,9 @@ class ActionPart extends JPanel implements ListSelectionListener {
         openDirButton.setEnabled(true);
 
         submitButton = new JButton(submitString);
-        ActionSubmitListener hireListener = new ActionSubmitListener();
+        ActionSubmitListener submitListener = new ActionSubmitListener();
         submitButton.setActionCommand(submitString);
-        submitButton.addActionListener(hireListener);
+        submitButton.addActionListener(submitListener);
         submitButton.setEnabled(false);
 
         buttonPanel.add(openDirButton);
@@ -199,10 +310,12 @@ class ActionPart extends JPanel implements ListSelectionListener {
                     PrimaryVideoDir = fc.getSelectedFile();
                     System.out.println("Import Primary Video Directory: " + PrimaryVideoDir);
                     directoryLabel.setText(String.valueOf(PrimaryVideoDir));
+                    videoPart.VideoPart1.LoadVideo(PrimaryVideoDir);
                 } else if (index == 1) {
                     SecondaryVideoDir = fc.getSelectedFile();
                     System.out.println("Import Secondary Video Directory: " + SecondaryVideoDir);
                     directoryLabel.setText(String.valueOf(SecondaryVideoDir));
+                    videoPart.VideoPart2.LoadVideo(SecondaryVideoDir);
                 }
             }
         }
@@ -277,13 +390,10 @@ class LinkListPart extends JPanel implements ListSelectionListener {
         buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.X_AXIS));
         buttonPanel.add(newName);
         buttonPanel.add(setNameButton);
-//        listScrollPane.setPreferredSize(new Dimension(100, 100));
-//        linkList.setMaximumSize(new Dimension(200, 0));
-//        actionList.setPreferredSize(new Dimension(300, 100));
 
         add(selectLinkLabel);
-//        add(linkList);
         add(listScrollPane, BorderLayout.CENTER);
+        add(Box.createRigidArea(new Dimension(0, 10)));
         add(buttonPanel);
     }
 
