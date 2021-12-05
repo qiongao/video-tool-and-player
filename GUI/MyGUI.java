@@ -10,7 +10,6 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
-import java.util.Arrays;
 
 public class MyGUI extends JPanel {
     public MyGUI() throws BadLocationException {
@@ -115,6 +114,7 @@ class ActionPart extends JPanel implements ListSelectionListener {
     public File PrimaryVideoDir = null, SecondaryVideoDir = null;
 
     public JFileChooser fc;
+    JLabel directoryLabel;
 
     public ActionPart() {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
@@ -127,13 +127,23 @@ class ActionPart extends JPanel implements ListSelectionListener {
         //Create the list and put it in a scroll pane.
         actionList = new JList(listModel);
 
+        JPanel labelPanel = new JPanel();
+        labelPanel.setLayout(new BoxLayout(labelPanel, BoxLayout.X_AXIS));
+
         JLabel actionLabel = new JLabel("Action: ");
         actionLabel.setLabelFor(actionList);
-        actionLabel.setAlignmentX(JLabel.RIGHT_ALIGNMENT);
+//        actionLabel.setAlignmentX(JLabel.RIGHT_ALIGNMENT);
+
+        directoryLabel = new JLabel("no path is selected");
+
+        labelPanel.add(actionLabel);
+        labelPanel.add(directoryLabel);
+
 
         actionList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         actionList.setSelectedIndex(0);
         actionList.addListSelectionListener(this);
+        actionList.setMaximumSize(new Dimension(200, 90));
 //        actionList.setMaximumSize(new Dimension(200, 0));
 //        actionList.setPreferredSize(new Dimension(300, 100));
 
@@ -155,7 +165,7 @@ class ActionPart extends JPanel implements ListSelectionListener {
         buttonPanel.add(Box.createRigidArea(new Dimension(10, 0)));
         buttonPanel.add(submitButton);
 
-        add(actionLabel);
+        add(labelPanel);
         add(Box.createRigidArea(new Dimension(0, 10)));
         add(actionList);
         add(Box.createRigidArea(new Dimension(0, 10)));
@@ -173,9 +183,11 @@ class ActionPart extends JPanel implements ListSelectionListener {
                 if (index == 0) {
                     PrimaryVideoDir = fc.getSelectedFile();
                     System.out.println("Import Primary Video Directory: " + PrimaryVideoDir);
+                    directoryLabel.setText(String.valueOf(PrimaryVideoDir));
                 } else if (index == 1) {
                     SecondaryVideoDir = fc.getSelectedFile();
-                    System.out.println("Import Secondary Video Directory: " + PrimaryVideoDir);
+                    System.out.println("Import Secondary Video Directory: " + SecondaryVideoDir);
+                    directoryLabel.setText(String.valueOf(SecondaryVideoDir));
                 }
             }
         }
@@ -211,8 +223,8 @@ class LinkListPart extends JPanel implements ListSelectionListener {
     private JList linkList;
     private DefaultListModel listModel;
 
-    private static final String reNameString = "Update Name";
-    private JButton reNameButton;
+    private static final String reNameString = "Set Name";
+    private JButton setNameButton;
     private JTextField newName;
 
     public LinkListPart () {
@@ -235,22 +247,21 @@ class LinkListPart extends JPanel implements ListSelectionListener {
         JScrollPane listScrollPane = new JScrollPane(linkList);
         listScrollPane.setMaximumSize(new Dimension(200, 90));
 
-        reNameButton = new JButton(reNameString);
+        setNameButton = new JButton(reNameString);
 //        reNameButton.setActionCommand(reNameString);
         RenameListener renameListener = new RenameListener();
-        reNameButton.addActionListener(renameListener);
-        reNameButton.setEnabled(false);
+        setNameButton.addActionListener(renameListener);
+        setNameButton.setEnabled(false);
 
         newName = new JTextField(10);
         newName.addActionListener(renameListener);
         newName.getDocument().addDocumentListener(renameListener);
-        String name = listModel.getElementAt(
-                linkList.getSelectedIndex()).toString();
+        newName.setMaximumSize(new Dimension(150, 30));
 
         JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.X_AXIS));
         buttonPanel.add(newName);
-        buttonPanel.add(reNameButton);
+        buttonPanel.add(setNameButton);
 //        listScrollPane.setPreferredSize(new Dimension(100, 100));
 //        linkList.setMaximumSize(new Dimension(200, 0));
 //        actionList.setPreferredSize(new Dimension(300, 100));
@@ -262,30 +273,83 @@ class LinkListPart extends JPanel implements ListSelectionListener {
     }
 
     class RenameListener implements ActionListener, DocumentListener {
+        private boolean alreadyEnabled = false;
 
         @Override
         public void actionPerformed(ActionEvent e) {
+            String name = newName.getText();
 
+            //User didn't type in a unique name...
+            if (name.equals("") || alreadyInList(name)) {
+                Toolkit.getDefaultToolkit().beep();
+                newName.requestFocusInWindow();
+                newName.selectAll();
+                return;
+            }
+
+            int index = linkList.getSelectedIndex(); //get selected index
+            if (index == -1) { //no selection, so insert at beginning
+                disableButton();
+                return;
+            }
+
+            listModel.setElementAt(newName.getText(), index);
+//            listModel.insertElementAt(newName.getText(), index);
+            //If we just wanted to add to the end, we'd do this:
+            //listModel.addElement(employeeName.getText());
+
+            //Reset the text field.
+            newName.requestFocusInWindow();
+            newName.setText("");
+
+            //Select the new item and make it visible.
+            linkList.setSelectedIndex(index);
+            linkList.ensureIndexIsVisible(index);
         }
 
         @Override
         public void insertUpdate(DocumentEvent e) {
-
+            enableButton();
         }
 
         @Override
         public void removeUpdate(DocumentEvent e) {
-
+            handleEmptyTextField(e);
         }
 
         @Override
         public void changedUpdate(DocumentEvent e) {
+            if (!handleEmptyTextField(e)) {
+                enableButton();
+            }
+        }
 
+        private void enableButton() {
+            if (!alreadyEnabled) {
+                setNameButton.setEnabled(true);
+            }
+        }
+
+        private void disableButton() {
+            setNameButton.setEnabled(false);
+            alreadyEnabled = false;
+        }
+
+        private boolean handleEmptyTextField(DocumentEvent e) {
+            if (e.getDocument().getLength() <= 0) {
+                disableButton();
+                return true;
+            }
+            return false;
+        }
+
+        protected boolean alreadyInList(String name) {
+            return listModel.contains(name);
         }
     }
 
     @Override
     public void valueChanged(ListSelectionEvent e) {
-
+        setNameButton.setEnabled(linkList.getSelectedIndex() != -1);
     }
 }
