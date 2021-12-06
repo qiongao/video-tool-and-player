@@ -1,30 +1,36 @@
 package GUI;
 
+import javax.sound.sampled.*;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
+import java.io.*;
 import java.util.ArrayList;
-import java.util.concurrent.TimeUnit;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.TimerTask;
 
 public class VideoPlayer extends JPanel implements ActionListener {
     public JFileChooser fc;
     ArrayList<File> rgbFiles = null;
     public int frameIndex = 0;
-    Boolean isPlay = false;
+//    Boolean isPlay = false;
     String playActionCommandStr = "Play";
     String pauseActionCommandStr = "Pause";
     String stopActionCommandStr = "Stop";
 
-    PlayVideoProcess playVideoProcess;
-    PlaySoundProcess playSoundProcess;
+    PlayVideoProcess playVideoProcess = null;
+    PlaySoundProcess playSoundProcess = null;
     JLabel videoLabel;
     JLabel frameProcessLabel;
     PlaySound soundPlayer;
+
+    FileInputStream soundInputStream = null;
+    AudioInputStream audioInputStream = null;
+    SourceDataLine audioDataLine = null;
+    String soundFilePath = null;
 
     public VideoPlayer() {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
@@ -48,21 +54,20 @@ public class VideoPlayer extends JPanel implements ActionListener {
         fc = new JFileChooser();
         fc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
 
-        playVideoProcess = new PlayVideoProcess();
-        playSoundProcess = new PlaySoundProcess();
+        playVideoProcess = new PlayVideoProcess(frameIndex);
+//        playSoundProcess = new PlaySoundProcess();
 
         JButton playButton = new JButton("Play");
         playButton.setActionCommand(playActionCommandStr);
         playButton.addActionListener(this);
-//        playButton.addActionListener(new playVideoListener(videoLabel, frameProcessLabel));
+
         JButton pauseButton = new JButton("Pause");
         pauseButton.setActionCommand(pauseActionCommandStr);
         pauseButton.addActionListener(this);
-//        pauseButton.addActionListener(new pauseVideoListener());
+
         JButton stopButton = new JButton("Stop");
         stopButton.setActionCommand(stopActionCommandStr);
         stopButton.addActionListener(this);
-//        stopButton.addActionListener(new stopVideoListener(frameProcessLabel));
 
         buttonsBar.add(loadVideo);
         buttonsBar.addSeparator();
@@ -102,14 +107,65 @@ public class VideoPlayer extends JPanel implements ActionListener {
     public void actionPerformed(ActionEvent e) {
         String actionCommand = e.getActionCommand();
         if (actionCommand.equals(playActionCommandStr)) {
+            if (playVideoProcess != null) {
+                playVideoProcess.cancel(false);
+            }
+
+            playVideoProcess = new PlayVideoProcess(frameIndex);
+//            playVideoProcess.setFrameIndex(frameIndex);
             playVideoProcess.execute();
-            playSoundProcess.execute();
+
+            audioDataLine.start();
+            if (playSoundProcess == null) {
+                playSoundProcess = new PlaySoundProcess(audioDataLine, audioInputStream);
+                playSoundProcess.execute();
+            }
         } else if (actionCommand.equals(pauseActionCommandStr)) {
-            isPlay = false;
+            if (playVideoProcess == null || playSoundProcess == null) {
+                return;
+            }
+
+            playVideoProcess.cancel(true);
+            playVideoProcess.run();
+            frameIndex = playVideoProcess.getFrameIndex();
+
+            if (audioDataLine != null) {
+                audioDataLine.stop();
+            }
+
         } else if (actionCommand.equals(stopActionCommandStr)) {
-            isPlay = false;
             frameIndex = 0;
+            playVideoProcess.setFrameIndex(0);
+            playVideoProcess.cancel(true);
+
+            SetFirstFrame();
             frameProcessLabel.setText("frame "+String.format("%04d", 0));
+
+            playSoundProcess.cancel(true);
+            playSoundProcess = null;
+
+            if (soundFilePath == null) {
+                return;
+            }
+            try {
+                soundInputStream = new FileInputStream(soundFilePath);
+                audioInputStream = null;
+                try {
+                    InputStream bufferedIn = new BufferedInputStream(soundInputStream); // new
+                    audioInputStream = AudioSystem.getAudioInputStream(bufferedIn);
+                } catch (UnsupportedAudioFileException | IOException e1) {
+                    throw new PlayWaveException(e1);
+                }
+
+                // Obtain the information about the AudioInputStream
+                AudioFormat audioFormat = audioInputStream.getFormat();
+                DataLine.Info info = new DataLine.Info(SourceDataLine.class, audioFormat);
+
+                audioDataLine = (SourceDataLine) AudioSystem.getLine(info);
+                audioDataLine.open(audioFormat, Constants.EXTERNAL_BUFFER_SIZE);
+            } catch (PlayWaveException | LineUnavailableException | FileNotFoundException exception) {
+                exception.printStackTrace();
+            }
         }
     }
 
@@ -127,12 +183,27 @@ public class VideoPlayer extends JPanel implements ActionListener {
                 File videoDir = fc.getSelectedFile();
                 LoadVideo(videoDir);
                 SetFirstFrame();
-                String soundFilePath = getSoundFile(videoDir);
-                FileInputStream soundInputStream;
+                soundFilePath = getSoundFile(videoDir);
+
                 try {
                     soundInputStream = new FileInputStream(soundFilePath);
-                    soundPlayer = new PlaySound(soundInputStream);
-                } catch (FileNotFoundException exception) {
+//                    soundPlayer = new PlaySound(soundInputStream);
+
+                    audioInputStream = null;
+                    try {
+                        InputStream bufferedIn = new BufferedInputStream(soundInputStream); // new
+                        audioInputStream = AudioSystem.getAudioInputStream(bufferedIn);
+                    } catch (UnsupportedAudioFileException | IOException e1) {
+                        throw new PlayWaveException(e1);
+                    }
+
+                    // Obtain the information about the AudioInputStream
+                    AudioFormat audioFormat = audioInputStream.getFormat();
+                    DataLine.Info info = new DataLine.Info(SourceDataLine.class, audioFormat);
+
+                    audioDataLine = (SourceDataLine) AudioSystem.getLine(info);
+                    audioDataLine.open(audioFormat, Constants.EXTERNAL_BUFFER_SIZE);
+                } catch (FileNotFoundException | PlayWaveException | LineUnavailableException exception) {
                     exception.printStackTrace();
                 }
             }
@@ -175,42 +246,84 @@ public class VideoPlayer extends JPanel implements ActionListener {
                     }
                 }
 
-                rgbFiles.sort((f1, f2) -> f1.getName().compareTo(f2.getName()));
+                rgbFiles.sort(Comparator.comparing(File::getName));
             }
         }
     }
 
     class PlayVideoProcess extends SwingWorker<Void, Integer> {
+        private int fIndex;
+        public PlayVideoProcess(int frameIndex) {
+            this.fIndex = frameIndex;
+        }
 
         @Override
         protected Void doInBackground() {
-            isPlay = true;
+            long startTime = System.currentTimeMillis();
+            int timeIndex = 0;
+            Boolean[] playedFrames = new Boolean[Constants.FramesPerSecond];
+            Arrays.fill(playedFrames, false);
 
-            while(isPlay) {
-                if (rgbFiles != null &&  rgbFiles.size() > frameIndex) {
-                    plotRGBFile(rgbFiles.get(frameIndex));
-                    frameProcessLabel.setText("frame "+String.format("%04d", frameIndex+1));
+            while (!isDone()) {
+                long curTime = System.currentTimeMillis();
+                if (timeIndex < Constants.FramesPerSecond && !playedFrames[timeIndex] && curTime >= startTime + timeIndex * 33) {
+                    playedFrames[timeIndex++] = true;
+                    if (rgbFiles != null &&  rgbFiles.size() > fIndex) {
+                        System.out.println("frame index: " + fIndex);
+                        plotRGBFile(rgbFiles.get(fIndex));
+                        frameProcessLabel.setText("frame "+String.format("%04d", fIndex+1));
 
-                    frameIndex += 1;
-                    try {
-//                    TimeUnit.SECONDS.sleep(300/9000);
-                        long timeGap = 300000/9;
-                        TimeUnit.MICROSECONDS.sleep(timeGap);
-                    } catch (InterruptedException ignored) {}
+                        fIndex += 1;
+                    }
+                } else if (timeIndex >= Constants.FramesPerSecond && curTime >= startTime + 1000) {
+                    timeIndex = 0;
+                    Arrays.fill(playedFrames, false);
+                    startTime += 1000;
                 }
             }
             return null;
         }
+
+        int getFrameIndex() {
+            return this.fIndex;
+        }
+
+        void setFrameIndex(int frameIndex) {
+            this.fIndex = frameIndex;
+        }
     }
 
     class PlaySoundProcess extends SwingWorker<Void, Integer> {
+        SourceDataLine aDataLine;
+        AudioInputStream aInputStream;
+        public PlaySoundProcess(SourceDataLine audioDataLine, AudioInputStream audioInputStream) {
+            this.aDataLine = audioDataLine;
+            this.aInputStream = audioInputStream;
+        }
+
+        public AudioInputStream getAudioInputStream() {
+            return this.aInputStream;
+        }
+
         @Override
         protected Void doInBackground() {
-            isPlay = true;
+            int readBytes = 0;
+            byte[] audioBuffer = new byte[Constants.EXTERNAL_BUFFER_SIZE];
+
             try {
-                soundPlayer.play();
-            } catch (PlayWaveException exception) {
-                exception.printStackTrace();
+                while (readBytes != -1 && !isDone()) {
+                    readBytes = this.aInputStream.read(audioBuffer, 0,
+                            audioBuffer.length);
+                    if (readBytes >= 0){
+                        aDataLine.write(audioBuffer, 0, readBytes);
+                    }
+                }
+            } catch (IOException e1) {
+                aDataLine.close();
+            } finally {
+                // plays what's left and and closes the audioChannel
+//                aDataLine.drain();
+                aDataLine.close();
             }
             return null;
         }
