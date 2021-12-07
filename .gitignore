@@ -25,3 +25,4 @@ hs_err_pid*
 .idea
 out
 video-tool-and-player.iml
+/.vs
