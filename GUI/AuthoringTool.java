@@ -42,6 +42,7 @@ public class AuthoringTool extends JPanel {
     }
     public static void main(String[] args) throws BadLocationException {
         JFrame frame = new JFrame();
+        frame.setMinimumSize(new Dimension(800,600));
         frame.setContentPane(new AuthoringTool());
 
         //Display the window.
@@ -105,7 +106,13 @@ class ControlPart extends JPanel {
         	    	LinkListPart.allFirstVideoFrames.put(x, tmp2); 
         	    	FirstVideo.linkBookFrame.clear();
         	    	
-        	    	LinkListPart.allSndVideoFiles.put(x, ActionPart.SecondaryVideoDir.getName());
+        	    	File second;
+					try {
+						second = new File(ActionPart.SecondaryVideoDir.getCanonicalPath());
+						LinkListPart.allSndVideoFiles.put(x, second);
+					} catch (IOException e1) {
+						e1.printStackTrace();
+					}       	    
         	    	LinkListPart.allSndVideoFrames.put(x, SecondVideo.linkFrame());
         	    	
         	    	
@@ -120,6 +127,8 @@ class ControlPart extends JPanel {
         	    		SaveFileButton.setEnabled(true);
         	    	}
         	    	
+        	    	JOptionPane.showMessageDialog(null,"New Link " + x + " saved!");
+        	    	
         	  }
         	 else if(e.getActionCommand() == "Save File") {
         		 	try {        		 		
@@ -128,7 +137,7 @@ class ControlPart extends JPanel {
 						OutputStreamWriter osw=new OutputStreamWriter(fos);
 						BufferedWriter bw=new BufferedWriter(osw);
 						for(int i = 0; i < LinkListPart.allSndVideoFiles.size(); i++) {
-							bw.write(LinkListPart.allSndVideoFiles.get(i) + " ");
+							bw.write(LinkListPart.allSndVideoFiles.get(i).getName() + " ");
 							bw.write(LinkListPart.allSndVideoFrames.get(i) + " ");
 							ArrayList<ArrayList<Integer>> tmp1 =  LinkListPart.allLinks.get(i);
 							ArrayList<Integer> tmp2 = LinkListPart.allFirstVideoFrames.get(i);
@@ -144,7 +153,7 @@ class ControlPart extends JPanel {
 							bw.newLine();
 						}
 						
-						
+						JOptionPane.showMessageDialog(null,"Save succesfully! Your links are succesfully saved in meta.txt to primary video's original path!");
 						bw.close();
 					} catch (FileNotFoundException e1) {
 						e1.printStackTrace();
@@ -208,7 +217,7 @@ class FirstVideo extends JPanel implements ChangeListener {
     public static boolean isVisable = false;
     public static boolean isCurrentVisable = false;
     public static boolean isLoaded = false;
-    
+    public boolean isFirstLoaded = true;
     
     public static int index;
     public static int[] oneFrameLink;
@@ -240,7 +249,7 @@ class FirstVideo extends JPanel implements ChangeListener {
         videoProgressSlider.setPaintTicks(true);
         videoProgressSlider.addChangeListener(this);
 
-        frameLabel = new JLabel("Frame 0001");
+        frameLabel = new JLabel("Frame 0000");
         frameLabel.setAlignmentX(CENTER_ALIGNMENT);
 
     	add(videoPart);
@@ -276,14 +285,20 @@ class FirstVideo extends JPanel implements ChangeListener {
                 }
             }
 
-            rgbFiles.sort(Comparator.comparing(File::getName));
+            rgbFiles.sort((f1, f2) -> f2.getName().compareTo(f1.getName()));
         }
         
         isLoaded = true;
        
         ControlPart.SaveFileButton.setEnabled(false);
         ControlPart.ConnectVideoButton.setEnabled(false);
-        LinkListPart.clear();
+        if(isFirstLoaded) {
+        	isFirstLoaded = false;
+        }
+        else {
+        	LinkListPart.clear();
+        }
+        
         
         setFirstFrame(1);
     }
@@ -454,7 +469,7 @@ class SecondVideo extends JPanel implements ChangeListener {
         add(frameLabel);
     }
 
-    public void LoadVideo(File directory) {
+    public static void LoadVideo(File directory) {
         File[] listOfFiles = directory.listFiles();
         rgbFiles = new ArrayList<>();
 
@@ -472,7 +487,7 @@ class SecondVideo extends JPanel implements ChangeListener {
                 }
             }
 
-            rgbFiles.sort(Comparator.comparing(File::getName));
+            rgbFiles.sort((f1, f2) -> f2.getName().compareTo(f1.getName()));
         }
         
         setFirstFrame(1);
@@ -531,8 +546,9 @@ class SecondVideo extends JPanel implements ChangeListener {
 class ActionPart extends JPanel implements ListSelectionListener {
     public JList actionList;
     public DefaultListModel listModel;
-
-    public static final String submitString = "Select a Area";
+    public static JTextArea txt;
+    
+    public static final String submitString = "Select an Area";
     public JButton submitButton;
     public JButton openDirButton;
 
@@ -593,11 +609,21 @@ class ActionPart extends JPanel implements ListSelectionListener {
         buttonPanel.add(Box.createRigidArea(new Dimension(10, 0)));
         buttonPanel.add(submitButton);
 
+        
+        txt =new JTextArea("Welcome to Super Video Editor!");
+        txt.setWrapStyleWord(true);
+        txt.setLineWrap(true);
+        txt.setMinimumSize(new Dimension(300, 20));
+        txt.setMaximumSize(new Dimension(300, 50));
+        txt.setEditable(false);
+        
         add(labelPanel);
         add(Box.createRigidArea(new Dimension(0, 10)));
         add(actionList);
         add(Box.createRigidArea(new Dimension(0, 10)));
         add(buttonPanel);
+        add(Box.createRigidArea(new Dimension(0, 10)));
+        add(txt);
     }
 
     class OpenFileListener extends Component implements ActionListener {
@@ -613,25 +639,28 @@ class ActionPart extends JPanel implements ListSelectionListener {
                     System.out.println("Import Primary Video Directory: " + PrimaryVideoDir);
                     directoryLabel.setText(String.valueOf(PrimaryVideoDir));
                     videoPart.VideoPart1.LoadVideo(PrimaryVideoDir);
+                    txt.setText("Primary video frames files imported! Reset complete! ");
                 } else if (index == 1) {
                     SecondaryVideoDir = fc.getSelectedFile();
                     System.out.println("Import Secondary Video Directory: " + SecondaryVideoDir);
                     directoryLabel.setText(String.valueOf(SecondaryVideoDir));
                     videoPart.VideoPart2.LoadVideo(SecondaryVideoDir);
+                    txt.setText("Secondary video frames files imported!");
                 }
             }
         }
     }
 
     class ActionSubmitListener implements ActionListener {
-    	int x = 0;
         public void actionPerformed(ActionEvent e) {
         	if(FirstVideo.isLoaded) {
+        		txt.setText("Please Select an Area!");
             	isCreateLink = true;
             }else {
+            	
             	isCreateLink = false;
             }
-            //int index = actionList.getSelectedIndex();
+         
 
         }
     }
@@ -644,15 +673,20 @@ class ActionPart extends JPanel implements ListSelectionListener {
             openDirButton.setEnabled(index != 2);
 
             if (index == 0) {
+            	txt.setText("Please Import your primary video frames files! Re-import will reset! ");
                 submitButton.setEnabled(false);
                 isCreateLink = false;
             } else if (index == 1) {
+            	txt.setText("Please Import your secondary video frames files! You can Re-import any times.");
                 submitButton.setEnabled(false);
                 isCreateLink = false;
             } else {
+            	
             	if(FirstVideo.isLoaded && SecondVideo.isLoaded) {
+            		txt.setText("Create a Link! Please click \"Select an Area\" to create hyperlink areas in the frames you want! ONE Click for ONE Area!!");
             		submitButton.setEnabled(true);   
             	}else {
+            		txt.setText("You MUST import both videos to start editting!");
             		submitButton.setEnabled(false);
             	}
             }
@@ -669,11 +703,11 @@ class LinkListPart extends JPanel implements ListSelectionListener {
     private JTextField newName;
     public static boolean isReset = false;
     
-    public static Map<Integer,ArrayList<ArrayList<Double>>> allError;
-    public static Map<Integer,ArrayList<ArrayList<Integer>>> allLinks; 
-    public static Map<Integer,ArrayList<Integer>> allFirstVideoFrames;   
-    public static Map<Integer,String> allSndVideoFiles;
-    public static Map<Integer,Integer> allSndVideoFrames;
+    public static Map<Integer,ArrayList<ArrayList<Double>>> allError = new HashMap<Integer,ArrayList<ArrayList<Double>>>();
+    public static Map<Integer,ArrayList<ArrayList<Integer>>> allLinks = new HashMap<Integer,ArrayList<ArrayList<Integer>>>(); 
+    public static Map<Integer,ArrayList<Integer>> allFirstVideoFrames = new HashMap<Integer,ArrayList<Integer>>();   
+    public static Map<Integer,File> allSndVideoFiles = new HashMap<Integer,File>();
+    public static Map<Integer,Integer> allSndVideoFrames = new HashMap<Integer,Integer>();
      
     
     
@@ -805,11 +839,21 @@ class LinkListPart extends JPanel implements ListSelectionListener {
             FirstVideo.setFrame(first.get(0));
             
             int second = LinkListPart.allSndVideoFrames.get(indexOfLinks);
-            SecondVideo.setFrame(second);
+            File secondFileName = LinkListPart.allSndVideoFiles.get(indexOfLinks);
+            if(!ActionPart.SecondaryVideoDir.getName().equals(secondFileName.getName())) {
+            	ActionPart.SecondaryVideoDir = secondFileName;
+            	SecondVideo.LoadVideo(secondFileName);
+            	SecondVideo.setFrame(second);            	         	
+            }
+            else {
+            	SecondVideo.setFrame(second);
+            }
+            
             
             FirstVideo.selectLink = indexOfLinks;
         }else {
         	isReset = false;
+        	
         }
         
        
@@ -823,7 +867,7 @@ class LinkListPart extends JPanel implements ListSelectionListener {
     	allError = new HashMap<Integer,ArrayList<ArrayList<Double>>>();
     	allLinks = new HashMap<Integer,ArrayList<ArrayList<Integer>>>(); 
         allFirstVideoFrames= new HashMap<Integer,ArrayList<Integer>>();   
-        allSndVideoFiles = new HashMap<Integer,String>();
+        allSndVideoFiles = new HashMap<Integer,File>();
         allSndVideoFrames = new HashMap<Integer,Integer>();
         listModel.removeAllElements();
         isReset = true;
@@ -992,6 +1036,7 @@ class Draw extends JLabel implements MouseListener, MouseMotionListener {
 			  ControlPart.ConnectVideoButton.setEnabled(true);
 		  }		  
 		  ActionPart.isCreateLink = false;
+		  ActionPart.txt.setText("Area confirm!");
 		  }
 	  }
 	 
@@ -1019,3 +1064,4 @@ class Draw extends JLabel implements MouseListener, MouseMotionListener {
 		
 	}
 	}
+
