@@ -7,16 +7,18 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.TimerTask;
+import java.util.List;
 
 public class VideoPlayer extends JPanel implements ActionListener {
     public JFileChooser fc;
     ArrayList<File> rgbFiles = null;
     public int frameIndex = 0;
-//    Boolean isPlay = false;
+
     String playActionCommandStr = "Play";
     String pauseActionCommandStr = "Pause";
     String stopActionCommandStr = "Stop";
@@ -25,7 +27,6 @@ public class VideoPlayer extends JPanel implements ActionListener {
     PlaySoundProcess playSoundProcess = null;
     JLabel videoLabel;
     JLabel frameProcessLabel;
-    PlaySound soundPlayer;
 
     FileInputStream soundInputStream = null;
     AudioInputStream audioInputStream = null;
@@ -53,9 +54,6 @@ public class VideoPlayer extends JPanel implements ActionListener {
         loadVideo.addActionListener(new OpenFileListener(videoLabel));
         fc = new JFileChooser();
         fc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-
-        playVideoProcess = new PlayVideoProcess(frameIndex);
-//        playSoundProcess = new PlaySoundProcess();
 
         JButton playButton = new JButton("Play");
         playButton.setActionCommand(playActionCommandStr);
@@ -107,18 +105,22 @@ public class VideoPlayer extends JPanel implements ActionListener {
     public void actionPerformed(ActionEvent e) {
         String actionCommand = e.getActionCommand();
         if (actionCommand.equals(playActionCommandStr)) {
-            if (playVideoProcess != null) {
-                playVideoProcess.cancel(false);
+            if (playVideoProcess == null || playVideoProcess.isDone()) {
+                if (playVideoProcess != null) {
+                    playVideoProcess.cancel(true);
+                }
+
+                playVideoProcess = new PlayVideoProcess(frameIndex);
+                playVideoProcess.execute();
             }
 
-            playVideoProcess = new PlayVideoProcess(frameIndex);
-//            playVideoProcess.setFrameIndex(frameIndex);
-            playVideoProcess.execute();
 
-            audioDataLine.start();
             if (playSoundProcess == null) {
+                audioDataLine.start();
                 playSoundProcess = new PlaySoundProcess(audioDataLine, audioInputStream);
                 playSoundProcess.execute();
+            } else {
+                playSoundProcess.disablePause();
             }
         } else if (actionCommand.equals(pauseActionCommandStr)) {
             if (playVideoProcess == null || playSoundProcess == null) {
@@ -129,10 +131,7 @@ public class VideoPlayer extends JPanel implements ActionListener {
             playVideoProcess.run();
             frameIndex = playVideoProcess.getFrameIndex();
 
-            if (audioDataLine != null) {
-                audioDataLine.stop();
-            }
-
+            playSoundProcess.setPause();
         } else if (actionCommand.equals(stopActionCommandStr)) {
             frameIndex = 0;
             playVideoProcess.setFrameIndex(0);
@@ -228,6 +227,29 @@ public class VideoPlayer extends JPanel implements ActionListener {
             return "";
         }
 
+        public void getMetaInfo(File directory) {
+            File[] listOfFiles = directory.listFiles();
+            List<String> metaContent = null;
+            if (listOfFiles != null) {
+                for (File file : listOfFiles) {
+                    String filename = file.getName();
+                    if (filename.equals("meta.txt")) {
+                        try {
+                            metaContent = Files.readAllLines(Paths.get(file.getPath()));
+                        } catch (Exception ignored) {}
+                        break;
+                    }
+                }
+            }
+
+            if (metaContent != null) {
+                for (String line: metaContent) {
+                    String[] lineContent = line.split(" ");
+                    // TODO
+                }
+            }
+        }
+
         public void LoadVideo(File directory) {
             File[] listOfFiles = directory.listFiles();
             rgbFiles = new ArrayList<>();
@@ -296,6 +318,8 @@ public class VideoPlayer extends JPanel implements ActionListener {
     class PlaySoundProcess extends SwingWorker<Void, Integer> {
         SourceDataLine aDataLine;
         AudioInputStream aInputStream;
+        Boolean isPaused = false;
+
         public PlaySoundProcess(SourceDataLine audioDataLine, AudioInputStream audioInputStream) {
             this.aDataLine = audioDataLine;
             this.aInputStream = audioInputStream;
@@ -305,6 +329,19 @@ public class VideoPlayer extends JPanel implements ActionListener {
             return this.aInputStream;
         }
 
+        public void setPause() {
+            isPaused = true;
+            aDataLine.stop();
+        }
+
+        public void disablePause() {
+            if (isPaused) {
+                isPaused = false;
+                aDataLine.drain();
+                aDataLine.start();
+            }
+        }
+
         @Override
         protected Void doInBackground() {
             int readBytes = 0;
@@ -312,17 +349,21 @@ public class VideoPlayer extends JPanel implements ActionListener {
 
             try {
                 while (readBytes != -1 && !isDone()) {
-                    readBytes = this.aInputStream.read(audioBuffer, 0,
-                            audioBuffer.length);
-                    if (readBytes >= 0){
-                        aDataLine.write(audioBuffer, 0, readBytes);
+                    if (!isPaused) {
+                        readBytes = this.aInputStream.read(audioBuffer, 0,
+                                audioBuffer.length);
+                        if (readBytes >= 0){
+                            aDataLine.write(audioBuffer, 0, readBytes);
+                        }
                     }
                 }
             } catch (IOException e1) {
+                aDataLine.stop();
                 aDataLine.close();
             } finally {
                 // plays what's left and and closes the audioChannel
 //                aDataLine.drain();
+                aDataLine.stop();
                 aDataLine.close();
             }
             return null;
