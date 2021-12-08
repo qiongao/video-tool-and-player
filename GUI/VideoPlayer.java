@@ -532,7 +532,11 @@ class DrawPlayer extends JLabel implements MouseListener {
                         rectHeight = frame.get(3) + (int)(error.get(3) * frameError);
                     }
 
-                    if (mouseX - rectX <= rectWidth && mouseY - rectY <= rectHeight) {
+                    if (mouseX - rectX <= rectWidth
+                            && mouseX - rectX >= 0
+                            && mouseY - rectY <= rectHeight
+                            && mouseY - rectY >= 0
+                    ) {
                         if (VideoPlayer.playVideoProcess != null) {
                             VideoPlayer.playVideoProcess.cancel(true);
                         }
