@@ -240,7 +240,7 @@ class FirstVideo extends JPanel implements ChangeListener {
         videoProgressSlider.setPaintTicks(true);
         videoProgressSlider.addChangeListener(this);
 
-        frameLabel = new JLabel("Frame 0000");
+        frameLabel = new JLabel("Frame 0001");
         frameLabel.setAlignmentX(CENTER_ALIGNMENT);
 
     	add(videoPart);
@@ -276,7 +276,7 @@ class FirstVideo extends JPanel implements ChangeListener {
                 }
             }
 
-            rgbFiles.sort((f1, f2) -> f2.getName().compareTo(f1.getName()));
+            rgbFiles.sort(Comparator.comparing(File::getName));
         }
         
         isLoaded = true;
@@ -472,7 +472,7 @@ class SecondVideo extends JPanel implements ChangeListener {
                 }
             }
 
-            rgbFiles.sort((f1, f2) -> f2.getName().compareTo(f1.getName()));
+            rgbFiles.sort(Comparator.comparing(File::getName));
         }
         
         setFirstFrame(1);
