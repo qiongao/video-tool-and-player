@@ -15,8 +15,8 @@ public class Utils {
     }
 
     public static void SetFrameShow(int frame, ArrayList<File> rgbFiles, JLabel videoLabel) {
-        if (rgbFiles != null && rgbFiles.size() > frame) {
-            Utils.PlotRGBFile(rgbFiles.get(frame), videoLabel);
+        if (rgbFiles != null && rgbFiles.size() >= frame && frame > 0) {
+            Utils.PlotRGBFile(rgbFiles.get(frame-1), videoLabel);
         }
     }
 

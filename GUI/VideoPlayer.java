@@ -138,51 +138,70 @@ public class VideoPlayer extends JPanel implements ActionListener {
 
             playSoundProcess.setPause();
         } else if (actionCommand.equals(stopActionCommandStr)) {
-            frameIndex = 0;
-            if (playVideoProcess != null) {
-                playVideoProcess.setFrameIndex(0);
-                playVideoProcess.cancel(true);
-            }
-
-            Utils.SetFrameShow(0, rgbFiles, videoLabel);
-            VisibleRectangle(1);
-
-            frameProcessLabel.setText("frame "+String.format("%04d", 1));
-
-            if (playSoundProcess != null) {
-                playSoundProcess.cancel(true);
-            }
-
-            if (audioDataLine != null) {
-                audioDataLine.close();
-            }
-            playSoundProcess = null;
-
-            if (soundFilePath == null) {
-                return;
-            }
-            try {
-                soundInputStream = new FileInputStream(soundFilePath);
-                audioInputStream = null;
-                try {
-                    InputStream bufferedIn = new BufferedInputStream(soundInputStream); // new
-                    audioInputStream = AudioSystem.getAudioInputStream(bufferedIn);
-                } catch (UnsupportedAudioFileException | IOException e1) {
-                    throw new PlayWaveException(e1);
-                }
-
-                // Obtain the information about the AudioInputStream
-                AudioFormat audioFormat = audioInputStream.getFormat();
-                DataLine.Info info = new DataLine.Info(SourceDataLine.class, audioFormat);
-
-                audioDataLine = (SourceDataLine) AudioSystem.getLine(info);
-                audioDataLine.open(audioFormat, Constants.EXTERNAL_BUFFER_SIZE);
-            } catch (PlayWaveException | LineUnavailableException | FileNotFoundException exception) {
-                exception.printStackTrace();
-            }
+            Replay(1, videoDir);
         } else if (e.getActionCommand().equals(showBoxCommandStr)) {
             isShowBox = !isShowBox;
             videoLabel.cleaner(videoLabel.getGraphics());
+        }
+    }
+
+    public static void Replay(int startFrame, File videoDirectory) {
+        frameIndex = startFrame - 1;
+
+        if (playVideoProcess != null) {
+            playVideoProcess.setFrameIndex(startFrame-1);
+            playVideoProcess.cancel(true);
+        }
+
+        if (playSoundProcess != null) {
+            playSoundProcess.disablePause();
+            playSoundProcess.cancel(true);
+        }
+
+        if (audioDataLine != null) {
+            audioDataLine.close();
+        }
+
+        VideoPlayer.playVideoProcess = null;
+        VideoPlayer.playSoundProcess = null;
+
+        videoDir = videoDirectory;
+        LoadVideo(videoDirectory);
+        GetMetaInfo(videoDirectory);
+        Utils.SetFrameShow(startFrame, rgbFiles, videoLabel);
+        VisibleRectangle(startFrame);
+
+        soundFilePath = getSoundFile(videoDir);
+
+        try {
+            soundInputStream = new FileInputStream(soundFilePath);
+            try {
+                if (audioInputStream != null) {
+                    audioInputStream.close();
+                    audioInputStream = null;
+                }
+
+                InputStream bufferedIn = new BufferedInputStream(soundInputStream); // new
+                audioInputStream = AudioSystem.getAudioInputStream(bufferedIn);
+                AudioFormat format = audioInputStream.getFormat();
+                long frameSize = format.getFrameSize();
+                float sndVideoSecond = (float)startFrame / 30.0f;
+                float skipSize = (float)format.getFrameSize() * format.getFrameRate() * sndVideoSecond;
+                skipSize = (long) (skipSize / frameSize) * frameSize;
+
+                audioInputStream.skip((long) skipSize);
+            } catch (UnsupportedAudioFileException | IOException e1) {
+                throw new PlayWaveException(e1);
+            }
+
+            // Obtain the information about the AudioInputStream
+            AudioFormat audioFormat = audioInputStream.getFormat();
+            DataLine.Info info = new DataLine.Info(SourceDataLine.class, audioFormat);
+
+            audioDataLine = (SourceDataLine) AudioSystem.getLine(info);
+            audioDataLine.open(audioFormat, Constants.EXTERNAL_BUFFER_SIZE);
+        } catch (FileNotFoundException | PlayWaveException | LineUnavailableException exception) {
+            exception.printStackTrace();
         }
     }
 
@@ -239,33 +258,7 @@ public class VideoPlayer extends JPanel implements ActionListener {
 
             if (returnVal == JFileChooser.APPROVE_OPTION) {
                 videoDir = fc.getSelectedFile();
-                LoadVideo(videoDir);
-                GetMetaInfo(videoDir);
-                Utils.SetFrameShow(0, rgbFiles, videoLabel);
-                VisibleRectangle(1);
-
-                soundFilePath = getSoundFile(videoDir);
-
-                try {
-                    soundInputStream = new FileInputStream(soundFilePath);
-
-                    audioInputStream = null;
-                    try {
-                        InputStream bufferedIn = new BufferedInputStream(soundInputStream); // new
-                        audioInputStream = AudioSystem.getAudioInputStream(bufferedIn);
-                    } catch (UnsupportedAudioFileException | IOException e1) {
-                        throw new PlayWaveException(e1);
-                    }
-
-                    // Obtain the information about the AudioInputStream
-                    AudioFormat audioFormat = audioInputStream.getFormat();
-                    DataLine.Info info = new DataLine.Info(SourceDataLine.class, audioFormat);
-
-                    audioDataLine = (SourceDataLine) AudioSystem.getLine(info);
-                    audioDataLine.open(audioFormat, Constants.EXTERNAL_BUFFER_SIZE);
-                } catch (FileNotFoundException | PlayWaveException | LineUnavailableException exception) {
-                    exception.printStackTrace();
-                }
+                Replay(1, videoDir);
             }
         }
     }
@@ -537,61 +530,12 @@ class DrawPlayer extends JLabel implements MouseListener {
                             && mouseY - rectY <= rectHeight
                             && mouseY - rectY >= 0
                     ) {
-                        if (VideoPlayer.playVideoProcess != null) {
-                            VideoPlayer.playVideoProcess.cancel(true);
-                        }
-
-                        if (VideoPlayer.playSoundProcess != null) {
-                            VideoPlayer.playSoundProcess.cancel(true);
-                        }
-
-                        if (VideoPlayer.audioDataLine != null) {
-                            VideoPlayer.audioDataLine.close();
-                        }
-
-                        VideoPlayer.playVideoProcess = null;
-                        VideoPlayer.playSoundProcess = null;
-
                         String sndVideoName = VideoPlayer.allSndVideoFiles.get(i);
                         int sndVideoFrame = VideoPlayer.allSndVideoFrames.get(i);
                         VideoPlayer.frameIndex = sndVideoFrame - 1;
 
                         File videoDir = Paths.get(VideoPlayer.videoDir.getParent()).resolve(sndVideoName).toFile();
-                        VideoPlayer.LoadVideo(videoDir);
-                        VideoPlayer.GetMetaInfo(videoDir);
-                        Utils.SetFrameShow(sndVideoFrame, VideoPlayer.rgbFiles, VideoPlayer.videoLabel);
-                        VideoPlayer.VisibleRectangle(sndVideoFrame);
-
-                        VideoPlayer.soundFilePath = VideoPlayer.getSoundFile(videoDir);
-
-                        try {
-                            VideoPlayer.soundInputStream = new FileInputStream(VideoPlayer.soundFilePath);
-                            try {
-                                VideoPlayer.audioInputStream.close();
-                                VideoPlayer.audioInputStream = null;
-
-                                InputStream bufferedIn = new BufferedInputStream(VideoPlayer.soundInputStream); // new
-                                VideoPlayer.audioInputStream = AudioSystem.getAudioInputStream(bufferedIn);
-                                AudioFormat format = VideoPlayer.audioInputStream.getFormat();
-                                long frameSize = format.getFrameSize();
-                                float sndVideoSecond = (float)sndVideoFrame / 30.0f;
-                                float skipSize = (float)format.getFrameSize() * format.getFrameRate() * sndVideoSecond;
-                                skipSize = (long) (skipSize / frameSize) * frameSize;
-
-                                VideoPlayer.audioInputStream.skip((long) skipSize);
-                            } catch (UnsupportedAudioFileException | IOException e1) {
-                                throw new PlayWaveException(e1);
-                            }
-
-                            // Obtain the information about the AudioInputStream
-                            AudioFormat audioFormat = VideoPlayer.audioInputStream.getFormat();
-                            DataLine.Info info = new DataLine.Info(SourceDataLine.class, audioFormat);
-
-                            VideoPlayer.audioDataLine = (SourceDataLine) AudioSystem.getLine(info);
-                            VideoPlayer.audioDataLine.open(audioFormat, Constants.EXTERNAL_BUFFER_SIZE);
-                        } catch (FileNotFoundException | PlayWaveException | LineUnavailableException exception) {
-                            exception.printStackTrace();
-                        }
+                        VideoPlayer.Replay(sndVideoFrame, videoDir);
                     }
                 }
             }
