@@ -73,8 +73,7 @@ class ControlPart extends JPanel {
         ActionConnectAndSaveListener submitListener = new ActionConnectAndSaveListener();
         
         ConnectVideoButton.addActionListener(submitListener);
-        ConnectVideoButton.setEnabled(false);
-        
+        ConnectVideoButton.setEnabled(false);        
         
         SaveFileButton = new JButton("Save File");
         SaveFileButton.setVerticalTextPosition(AbstractButton.CENTER);
@@ -297,6 +296,11 @@ class FirstVideo extends JPanel implements ChangeListener {
         	isFirstLoaded = false;
         }
         else {
+        	linkBook = new ArrayList<ArrayList<Integer>>(); 
+        	linkBookFrame = new ArrayList<Integer>();  
+        	isVisable = false;
+        	isCurrentVisable = false;
+        	LinkListPart.isReset = true;
         	LinkListPart.clear();
         }
         
@@ -357,7 +361,8 @@ class FirstVideo extends JPanel implements ChangeListener {
     	index = 0;
     		   	
     	boolean flag = false;
-        for(int i = 0; i < linkBookFrame.size(); i++) {  
+    	if(!linkBookFrame.isEmpty()) {
+         for(int i = 0; i < linkBookFrame.size(); i++) {  
         	 if((i + 1) < linkBookFrame.size()) {
         		int x = linkBookFrame.get(i);
         		int y = linkBookFrame.get(i+1);
@@ -380,12 +385,13 @@ class FirstVideo extends JPanel implements ChangeListener {
         	 }
         	
         }
-        
+    	}
         Set<Integer> v = LinkListPart.allFirstVideoFrames.keySet();
         oneFrameLink = new int[v.size()];
         oneFrameError = new int[v.size()];
         Arrays.fill(oneFrameLink, -1);
         Arrays.fill(oneFrameError, -1);
+        if(!LinkListPart.allFirstVideoFrames.isEmpty()) {
         for(int z : v) {
         	ArrayList<Integer> oneFrame = LinkListPart.allFirstVideoFrames.get(z);        	       	
         	 for(int i = 0; i < oneFrame.size(); i++) { 
@@ -411,6 +417,7 @@ class FirstVideo extends JPanel implements ChangeListener {
         			 }
         		 }          	
              }
+        }
         }
         if(!flag) {
         	videoPart.cleaner(videoPart.getGraphics());
