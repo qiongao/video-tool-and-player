@@ -148,6 +148,7 @@ public class VideoPlayer extends JPanel implements ActionListener {
 
     public static void Replay(int startFrame, File videoDirectory) {
         frameIndex = startFrame - 1;
+        frameProcessLabel.setText("frame "+String.format("%04d", startFrame));
 
         if (playVideoProcess != null) {
             playVideoProcess.setFrameIndex(startFrame-1);
