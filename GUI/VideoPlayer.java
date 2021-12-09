@@ -15,6 +15,7 @@ public class VideoPlayer extends JPanel implements ActionListener {
     public JFileChooser fc;
     public static ArrayList<File> rgbFiles = null;
     public static int frameIndex = 0;
+       
 
     String playActionCommandStr = "Play";
     String pauseActionCommandStr = "Pause";
@@ -43,6 +44,11 @@ public class VideoPlayer extends JPanel implements ActionListener {
 
     public static boolean isVisible = false;
     public static boolean isShowBox = true;
+    
+    JButton playButton;
+    JButton pauseButton;
+    JButton stopButton;
+    JButton showBoxButton;
 
     public VideoPlayer() {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
@@ -66,21 +72,25 @@ public class VideoPlayer extends JPanel implements ActionListener {
         fc = new JFileChooser();
         fc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
 
-        JButton playButton = new JButton("Play");
+        playButton = new JButton("Play");
         playButton.setActionCommand(playActionCommandStr);
         playButton.addActionListener(this);
+        playButton.setEnabled(false);
 
-        JButton pauseButton = new JButton("Pause");
+        pauseButton = new JButton("Pause");
         pauseButton.setActionCommand(pauseActionCommandStr);
         pauseButton.addActionListener(this);
-
-        JButton stopButton = new JButton("Stop");
+        pauseButton.setEnabled(false);
+        
+        stopButton = new JButton("Stop");
         stopButton.setActionCommand(stopActionCommandStr);
         stopButton.addActionListener(this);
-
-        JButton showBoxButton = new JButton("Show Box");
+        stopButton.setEnabled(false);
+        
+        showBoxButton = new JButton("Hide Boxs");
         showBoxButton.setActionCommand(showBoxCommandStr);
         showBoxButton.addActionListener(this);
+        showBoxButton.setEnabled(false);
 
         buttonsBar.add(loadVideo);
         buttonsBar.addSeparator();
@@ -100,7 +110,7 @@ public class VideoPlayer extends JPanel implements ActionListener {
     public static void main(String[] args) {
         JFrame frame = new JFrame();
         frame.setContentPane(new VideoPlayer());
-
+        //frame.setMinimumSize(new Dimension(600,400));
         //Display the window.
         frame.pack();
         frame.setVisible(true);
@@ -140,8 +150,15 @@ public class VideoPlayer extends JPanel implements ActionListener {
         } else if (actionCommand.equals(stopActionCommandStr)) {
             Replay(1, videoDir);
         } else if (e.getActionCommand().equals(showBoxCommandStr)) {
-            isShowBox = !isShowBox;
-            videoLabel.cleaner(videoLabel.getGraphics());
+            isShowBox = !isShowBox; 
+            if(!isShowBox) {
+            	showBoxButton.setText("Show Boxs");
+            }else {
+            	showBoxButton.setText("Hide Boxs");
+            }
+            	 videoLabel.paint(videoLabel.getGraphics());
+           
+           
         }
     }
 
@@ -259,6 +276,10 @@ public class VideoPlayer extends JPanel implements ActionListener {
             if (returnVal == JFileChooser.APPROVE_OPTION) {
                 videoDir = fc.getSelectedFile();
                 Replay(1, videoDir);
+                playButton.setEnabled(true);
+                pauseButton.setEnabled(true);
+                stopButton.setEnabled(true);
+                showBoxButton.setEnabled(true);
             }
         }
     }
