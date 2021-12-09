@@ -104,6 +104,7 @@ public class VideoPlayer extends JPanel implements ActionListener {
         //Display the window.
         frame.pack();
         frame.setVisible(true);
+        frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
     }
 
     @Override
