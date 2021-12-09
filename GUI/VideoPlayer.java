@@ -559,6 +559,8 @@ class DrawPlayer extends JLabel implements MouseListener {
 
                         File videoDir = Paths.get(VideoPlayer.videoDir.getParent()).resolve(sndVideoName).toFile();
                         VideoPlayer.Replay(sndVideoFrame, videoDir);
+
+                        return;
                     }
                 }
             }
